@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXPO2025 会場地図</title>
+    <meta name="description" content="OpenStreetMapのデータを使った2025年日本国際博覧会の非公式会場地図です。" />
+    <script src="https://unpkg.com/maplibre-gl@4.3.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.3.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        header {
+            width: 100%;
+            height: 50px;
+            line-height: 50px;
+            padding: 0 25px;
+        }
+
+        header input {
+            height: 30px;
+            width: 30%;
+            margin: 10px 0 10px 5px;
+            border: solid 2px #777;
+            outline: none;
+            padding: 0 3px;
+            border-radius: 3px;
+            vertical-align: top;
+            float: right;
+        }
+
+        header input:focus {
+            border-color: #333;
+        }
+
+        h1 {
+            display: inline-block;
+            font-size: 20px;
+            margin: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 50px);
+        }
+
+        .legend {
+            margin: 8px;
+        }
+
+        .legend img {
+            width: 120px;
+            max-width: 80vw;
+            max-height: 80vh;
+            border-radius: 4px;
+        }
+
+        #search_result {
+            position: absolute;
+            left: 0;
+            top: 50px;
+            bottom: 0;
+            margin: 0;
+            width: 300px;
+            height: calc(100vh - 50px);
+            background: #FFF;
+            z-index: 999;
+            border: none;
+            border-right: solid 1px #666;
+            border-top: solid 1px #666;
+            overflow: hidden;
+        }
+
+        #dialog_header {
+            white-space: nowrap;
+            margin-bottom: 8px;
+        }
+
+        #dialog_header h3 {
+            margin: 0;
+            display: inline;
+        }
+
+        #dialog_header button {
+            float: right;
+            background: none;
+            border: none;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            font-size: 20px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        #result_list div {
+            padding: 4px 0;
+            border-bottom: solid 1px #555;
+        }
+
+        #result_list div span {
+            display: block;
+            font-size: 14px;
+            color: #666;
+        }
+
+        #kind_short {
+            font-size: 14px;
+            display: inline;
+        }
+
+        #main_title {
+            margin: 0;
+            font-size: 18px;
+            display: inline;
+        }
+
+        #coord,
+        #sub_title {
+            color: #666;
+            font-size: 14px;
+        }
+
+        #result_additional {
+            margin-top: 0.6em;
+        }
+
+        @media (max-width: 767px) {
+            #search_result {
+                top: auto;
+                width: 100vw;
+                height: calc(50vh - 50px);
+                border-right: none;
+            }
+
+            body:has(#search_result[open]) #map {
+                height: 50vh !important;
+            }
+
+            header {
+                padding: 0 10px;
+                display: flex;
+            }
+
+            header input {
+                flex: 1;
+            }
+
+            h1 {
+                width: 110px;
+                font-size: 16px;
+                line-height: 25px;
+                text-align: center;
+            }
+
+            h1 span {
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>
+            <span>EXPO2025</span>
+            <span>非公式マップ</span>
+        </h1>
+        <input type="search" id="search" placeholder="検索">
+    </header>
+    <div id="map"></div>
+
+    <dialog id="search_result">
+        <div id="dialog_header">
+            <h3>検索結果</h3>
+            <button id="close_dialog" aria-label="検索結果を閉じる">×</button>
+        </div>
+        <div id="result_list">
+        </div>
+        <div id="result_detail">
+            <div>
+                <h4 id="main_title">日本館</h4>
+                <div id="kind_short">展示場</div>
+            </div>
+            <span id="sub_title"></span>
+            <div id="coord"></div>
+
+            <div id="result_additional">...</div>
+        </div>
+    </dialog>
+
+    <script>
+        var map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    rtile: {
+                        type: 'raster',
+                        tiles: [
+                            'https://tile.openstreetmap.jp/{z}/{x}/{y}.png',
+                        ],
+                        tileSize: 256,
+                        attribution:
+                            '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+                        minzoom: 0,
+                        maxzoom: 22,
+                    }, EXPO2025: {
+                        type: 'raster',
+                        tiles: [
+                            './EXPO2025/{z}/{x}/{y}.png',
+                        ],
+                        tileSize: 256,
+                        attribution:
+                            '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+                        minzoom: 14,
+                        maxzoom: 20,
+                    },
+                },
+                layers: [
+                    {
+                        id: 'raster-tiles',
+                        type: 'raster',
+                        source: 'rtile',
+                    }, {
+                        id: 'EXPO2025',
+                        type: 'raster',
+                        source: 'EXPO2025',
+                    },
+
+                ],
+            },
+            center: [139.68786, 35.68355],
+            zoom: 13,
+            attributionControl: false,
+        });
+
+        map.addControl(
+            new maplibregl.AttributionControl({ compact: true, }),
+            "bottom-right"
+        );
+
+        map.fitBounds([
+            [135.372, 34.660],
+            [135.404, 34.641]
+        ], { animate: false });
+
+
+
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        map.addControl(new maplibregl.GeolocateControl(), 'top-right');
+        var legend = document.createElement("div");
+        var legend_i = document.createElement("img")
+        legend_i.src = "./assets/legends.svg"
+        legend.classList.add("legend")
+        legend.appendChild(legend_i)
+
+        map.addControl({
+            onAdd: function () { return legend; },
+        }, "top-left");
+
+        document.getElementById("close_dialog").addEventListener("click", function () {
+            document.getElementById("search_result").close()
+        })
+
+        var kind_table = {
+            "place=island": "島",
+            "amenity=exhibition_centre": "展示施設",
+            "building=yes": "建物",
+            "leisure=park": "公園",
+            "information=board": "案内板",
+            "amenity=drinking_water": "給水機",
+            "emergency=defibrillator": "AED",
+            "amenity=restaurant": "飲食店",
+            "tourism=artwork": "芸術作品",
+            "information=map": "地図",
+            "entrance=yes": "出入口",
+            "amenity=fast_food": "ファストフード",
+            "amenity=vending_machine": "自販機",
+            "amenity=waste_basket": "ゴミ箱",
+            "information=office": "案内所",
+            "amenity=atm": "ATM",
+            "shop=convenience": "コンビニ",
+            "shop=gift": "土産屋",
+            "amenity=cafe": "カフェ",
+            "amenity=food_court": "フードコート",
+            "amenity=bench": "ベンチ",
+            "highway=pedestrian": "歩行者天国",
+            "highway=footway": "道路",
+            "highway=service": "道路",
+            "highway=tertiary": "道路",
+            "amenity=bus_station": "バス停",
+            "natural=water": "水域",
+            "amenity=shelter": "休憩所",
+            "amenity=toilets": "トイレ",
+        }
+
+        function draw_search_detail(json) {
+
+            if (json.osm_id) {
+                document.getElementById("result_additional").innerHTML = "..."
+                fetch("http://overpass-api.de/api/interpreter?data=" + encodeURI(`[out:json];node(${json.osm_id});out;way(${json.osm_id});out;rel(${json.osm_id});out;`)).then(function (res) { return res.json() }).then(function (json) {
+                    if (json && json.elements) {
+                        tags = json.elements.find(function (el) {
+                            return el.tags;
+                        })
+                        if (tags) tags = tags.tags
+                        else return
+
+                        var detail = []
+                        if (tags.name_en) detail.push(tags.name_en);
+
+                        if (tags.reservation = "no") detail.push("予約不要")
+                        else if (tags.reservation = "yes") detail.push("事前予約あり")
+                        else if (tags.reservation = "recommended") detail.push("予約推奨")
+                        else if (tags.reservation = "required") detail.push("予約必須")
+
+                        if (tags.website) detail.push(`<a target="_blank" href="${tags.website}">ウェブサイト</a>`);
+
+                        document.getElementById("result_additional").innerHTML = detail.join(" / ")
+
+                    }
+                })
+            } else {
+                document.getElementById("result_additional").innerHTML = ""
+            }
+
+
+            document.getElementById("result_detail").style.display = "block"
+            document.getElementById("result_list").style.display = "none"
+
+            if (json.boundingbox) {
+                var bb = json.boundingbox
+                map.fitBounds([[bb[2], bb[0]], [bb[3], bb[1]]], {
+                    padding: 70
+                });
+            }
+
+            document.getElementById("main_title").innerText = json.name
+            document.getElementById("sub_title").innerText = json.display_name
+
+            document.getElementById("coord").innerText = json.lat + ", " + json.lon
+
+            var kind_tmp = ""
+            var key_tmp = json.category + "=" + json.type;
+            if (kind_table[key_tmp]) kind_tmp = kind_table[key_tmp]
+
+            document.getElementById("kind_short").innerText = kind_tmp
+
+
+
+
+            //document.getElementById("result_detail").innerText = JSON.stringify(json)
+        }
+
+        function draw_search_res(json) {
+            document.getElementById("result_detail").style.display = "none"
+            document.getElementById("result_list").style.display = "block"
+
+            document.getElementById("search_result").show()
+
+            document.getElementById("result_list").innerHTML = ""
+
+            if (json) {
+                json.forEach(function (elm) {
+                    var res = document.createElement("div")
+
+                    var kind_tmp = ""
+                    var key_tmp = elm.category + "=" + elm.type;
+                    if (kind_table[key_tmp]) kind_tmp = kind_table[key_tmp]
+
+                    var a = document.createElement("a")
+                    a.innerText = elm.name ? elm.name : kind_tmp
+                    console.log(elm.name, kind_tmp)
+                    a.href = "javascript:void(0)"
+                    res.appendChild(a)
+
+                    a.addEventListener("click", function () {
+                        draw_search_detail(elm)
+                    })
+
+                    var span = document.createElement("span")
+                    span.innerText = elm.display_name
+                    res.appendChild(span)
+
+                    document.getElementById("result_list").appendChild(res)
+                })
+            } else {
+                document.getElementById("result_list").innerHTML = "結果なし"
+
+            }
+        }
+
+        var search_form = document.getElementById("search");
+        var convert_table = {
+            "トイレ": "toilets",
+            "レストラン": "restaurant",
+            "飲食店": "restaurant",
+            "飯屋": "restaurant",
+            "料理屋": "restaurant",
+            "食事": "restaurant",
+            "料理店": "restaurant",
+            "ランチ": "restaurant",
+            "ディナー": "restaurant",
+            "カフェ": "cafe",
+            "ファストフード": "fast_food",
+            "軽食": "fast_food",
+            "給水機": "water",
+            "冷水機": "water",
+        }
+        search_form.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                var search_words = search_form.value
+                if (convert_table[search_words]) search_words = convert_table[search_words]
+                search_words = encodeURI(search_words)
+
+                fetch(
+                    `https://nominatim.openstreetmap.org/search.php?q=${search_words}&polygon_geojson=1&viewbox=135.372%2C34.660%2C135.404%2C34.641&bounded=1&format=jsonv2`
+                ).then(function (res) { return res.json() }).then(function (json) {
+                    if (!json || !Array.isArray(json)) return;
+                    if (json.length == 0) {
+                        draw_search_res()
+                    } else if (json.length == 1) {
+                        draw_search_res(json)
+                    } else {
+                        json = json.sort((a, b) => {
+                            if (a.geojson) var a = a.geojson.type
+                            if (b.geojson) var b = b.geojson.type
+                            if (!a) var a = "LineString"
+                            if (!b) var b = "LineString"
+
+                            var c = { "Point": 1, "LineString": 2, "Polygon": 3 }
+                            return c[a] < c[b] ? 1 : -1
+                        });
+                        draw_search_res(json)
+                    }
+                })
+            }
+            return false;
+        });
+
+    </script>
+</body>
+
+</html>
