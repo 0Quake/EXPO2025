@@ -308,6 +308,10 @@
 
         document.getElementById("close_dialog").addEventListener("click", function () {
             document.getElementById("search_result").close()
+            if (map_marker) {
+                map_marker.remove()
+                map_marker = null;
+            }
         })
 
         var kind_table = {
@@ -343,6 +347,7 @@
         }
 
         function draw_search_detail(json) {
+            document.getElementById("search_result").show()
 
             if (json.osm_id) {
                 document.getElementById("result_additional").innerHTML = "..."
@@ -418,11 +423,16 @@
 
                     var a = document.createElement("a")
                     a.innerText = elm.name ? elm.name : kind_tmp
-                    console.log(elm.name, kind_tmp)
                     a.href = "javascript:void(0)"
                     res.appendChild(a)
 
                     a.addEventListener("click", function () {
+                        if (map_marker) {
+                            map_marker.remove()
+                            map_marker = null;
+                        }
+                        map_marker = new maplibregl.Marker().setLngLat([elm.lon, elm.lat]).addTo(map);
+
                         draw_search_detail(elm)
                     })
 
@@ -496,14 +506,20 @@
             return false;
         });
 
+        var map_marker;
         map.on("click", function (e) {
-            return;
+            if (map_marker) {
+                map_marker.remove()
+                map_marker = null;
+            }
+            map_marker = new maplibregl.Marker().setLngLat(e.lngLat).addTo(map);
+
             document.getElementById("loading").showModal()
             fetch(`https://nominatim.openstreetmap.org/reverse.php?lat=${e.lngLat.lat}&lon=${e.lngLat.lng}&zoom=18&format=jsonv2`)
                 .then(function (res) { return res.json() }).then(function (json) {
                     document.getElementById("loading").close()
                     if (!json) return;
-                    draw_search_detail([json])
+                    draw_search_detail(json)
                 }).catch(function () {
                     document.getElementById("loading").close()
                 })
