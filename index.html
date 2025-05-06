@@ -64,6 +64,7 @@
             max-width: 80vw;
             max-height: 80vh;
             border-radius: 4px;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         #search_result {
@@ -80,16 +81,20 @@
             border-right: solid 1px #666;
             border-top: solid 1px #666;
             overflow: hidden;
+            padding: 0;
         }
 
         #dialog_content {
             display: flex;
             flex-direction: column;
+            height: 100%;
         }
 
         #dialog_header {
             white-space: nowrap;
             margin-bottom: 8px;
+            padding: 0 16px;
+            margin-top: 10px;
         }
 
         #dialog_header h3 {
@@ -112,6 +117,7 @@
         #result_detail,
         #result_list {
             overflow: auto;
+            padding: 0 16px;
         }
 
         #result_list div {
@@ -404,6 +410,21 @@
 
             //document.getElementById("result_detail").innerText = JSON.stringify(json)
         }
+        var current_position;
+
+        const R = Math.PI / 180;
+        function distance(lat1, lng1, lat2, lng2) {
+            lat1 *= R;
+            lng1 *= R;
+            lat2 *= R;
+            lng2 *= R;
+            return 6371 * Math.acos(Math.cos(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1) + Math.sin(lat1) * Math.sin(lat2));
+        }
+
+        function format_dist(km) {
+            if (km > 1) return Math.round(km * 10) / 10 + " km"
+            else return Math.round(km * 1000) + " m"
+        }
 
         function draw_search_res(json) {
             document.getElementById("result_detail").style.display = "none"
@@ -414,6 +435,17 @@
             document.getElementById("result_list").innerHTML = ""
 
             if (json) {
+                if (current_position) {
+                    json.forEach(function (elm) {
+                        console.log(distance(Number(elm.lat), Number(elm.lon), current_position[1], current_position[0]))
+                        elm.distance = distance(Number(elm.lat), Number(elm.lon), current_position[1], current_position[0])
+                    })
+
+                    json = json.sort(function (a, b) {
+                        return a.distance < b.distance ? -1 : 1
+                    })
+                }
+
                 json.forEach(function (elm) {
                     var res = document.createElement("div")
 
@@ -437,7 +469,8 @@
                     })
 
                     var span = document.createElement("span")
-                    span.innerText = elm.display_name
+                    var distance_str = elm.distance ? "ここから" + format_dist(elm.distance) + " / " : ""
+                    span.innerText = distance_str + elm.display_name
                     res.appendChild(span)
 
                     document.getElementById("result_list").appendChild(res)
@@ -469,6 +502,11 @@
             "フランス": "フランスパビリオン",
             "大屋根": "大屋根リング",
             "駅": "station",
+            "自販機": "vending_machine",
+            "自動販売機": "vending_machine",
+            "自動販売機": "vending_machine",
+            "飲み物": "vending_machine",
+            "飲料": "vending_machine",
         }
         search_form.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
@@ -502,6 +540,14 @@
                 }).catch(function () {
                     document.getElementById("loading").close()
                 })
+
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    const crd = pos.coords;
+                    current_position = [crd.longitude, crd.latitude]
+                }, function () { }, {
+                    enableHighAccuracy: false,
+                    timeout: 1000,
+                });
             }
             return false;
         });
