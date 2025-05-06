@@ -80,6 +80,8 @@
             border-right: solid 1px #666;
             border-top: solid 1px #666;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         #dialog_header {
@@ -102,6 +104,11 @@
             font-size: 20px;
             color: #666;
             cursor: pointer;
+        }
+
+        #result_detail,
+        #result_list {
+            overflow: auto;
         }
 
         #result_list div {
@@ -134,6 +141,25 @@
 
         #result_additional {
             margin-top: 0.6em;
+        }
+
+        #loading {
+            border: none;
+            border-radius: 5px;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            font-size: 18px;
+            outline: none;
+        }
+
+        #loading img {
+            margin-top: 6px;
+            width: 22px;
+        }
+
+        #loading::backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
         }
 
         @media (max-width: 767px) {
@@ -198,6 +224,11 @@
 
             <div id="result_additional">...</div>
         </div>
+    </dialog>
+
+    <dialog id="loading">
+        <div>読み込み中</div>
+        <img src="./assets/loading.gif" alt="読み込み中">
     </dialog>
 
     <script>
@@ -418,9 +449,16 @@
             "軽食": "fast_food",
             "給水機": "water",
             "冷水機": "water",
+            "中国": "中国パビリオン",
+            "アメリカ": "米国パビリオン",
+            "フランス": "フランスパビリオン",
+            "大屋根": "大屋根リング",
+            "駅": "station",
         }
         search_form.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
+                document.getElementById("loading").showModal()
+
                 var search_words = search_form.value
                 if (convert_table[search_words]) search_words = convert_table[search_words]
                 search_words = encodeURI(search_words)
@@ -428,6 +466,7 @@
                 fetch(
                     `https://nominatim.openstreetmap.org/search.php?q=${search_words}&polygon_geojson=1&viewbox=135.372%2C34.660%2C135.404%2C34.641&bounded=1&format=jsonv2`
                 ).then(function (res) { return res.json() }).then(function (json) {
+                    document.getElementById("loading").close()
                     if (!json || !Array.isArray(json)) return;
                     if (json.length == 0) {
                         draw_search_res()
@@ -445,6 +484,8 @@
                         });
                         draw_search_res(json)
                     }
+                }).catch(function () {
+                    document.getElementById("loading").close()
                 })
             }
             return false;
