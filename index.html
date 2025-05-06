@@ -80,6 +80,9 @@
             border-right: solid 1px #666;
             border-top: solid 1px #666;
             overflow: hidden;
+        }
+
+        #dialog_content {
             display: flex;
             flex-direction: column;
         }
@@ -208,21 +211,23 @@
     <div id="map"></div>
 
     <dialog id="search_result">
-        <div id="dialog_header">
-            <h3>検索結果</h3>
-            <button id="close_dialog" aria-label="検索結果を閉じる">×</button>
-        </div>
-        <div id="result_list">
-        </div>
-        <div id="result_detail">
-            <div>
-                <h4 id="main_title">日本館</h4>
-                <div id="kind_short">展示場</div>
+        <div id="dialog_content">
+            <div id="dialog_header">
+                <h3>検索結果</h3>
+                <button id="close_dialog" aria-label="検索結果を閉じる">×</button>
             </div>
-            <span id="sub_title"></span>
-            <div id="coord"></div>
+            <div id="result_list">
+            </div>
+            <div id="result_detail">
+                <div>
+                    <h4 id="main_title">日本館</h4>
+                    <div id="kind_short">展示場</div>
+                </div>
+                <span id="sub_title"></span>
+                <div id="coord"></div>
 
-            <div id="result_additional">...</div>
+                <div id="result_additional">...</div>
+            </div>
         </div>
     </dialog>
 
@@ -491,6 +496,18 @@
             return false;
         });
 
+        map.on("click", function (e) {
+            return;
+            document.getElementById("loading").showModal()
+            fetch(`https://nominatim.openstreetmap.org/reverse.php?lat=${e.lngLat.lat}&lon=${e.lngLat.lng}&zoom=18&format=jsonv2`)
+                .then(function (res) { return res.json() }).then(function (json) {
+                    document.getElementById("loading").close()
+                    if (!json) return;
+                    draw_search_detail([json])
+                }).catch(function () {
+                    document.getElementById("loading").close()
+                })
+        })
     </script>
 </body>
 
