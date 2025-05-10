@@ -350,6 +350,7 @@
             "natural=water": "水域",
             "amenity=shelter": "休憩所",
             "amenity=toilets": "トイレ",
+            "highway=bus_stop": "バス停"
         }
 
         function draw_search_detail(json) {
@@ -357,7 +358,7 @@
 
             if (json.osm_id) {
                 document.getElementById("result_additional").innerHTML = "..."
-                fetch("http://overpass-api.de/api/interpreter?data=" + encodeURI(`[out:json];node(${json.osm_id});out;way(${json.osm_id});out;rel(${json.osm_id});out;`)).then(function (res) { return res.json() }).then(function (json) {
+                fetch("https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=" + encodeURI(`[out:json];node(${json.osm_id});out;way(${json.osm_id});out;rel(${json.osm_id});out;`)).then(function (res) { return res.json() }).then(function (json) {
                     if (json && json.elements) {
                         tags = json.elements.find(function (el) {
                             return el.tags;
@@ -446,35 +447,39 @@
                     })
                 }
 
-                json.forEach(function (elm) {
-                    var res = document.createElement("div")
+                if (json.length == 1) {
+                    draw_search_detail(json[0])
+                } else {
+                    json.forEach(function (elm) {
+                        var res = document.createElement("div")
 
-                    var kind_tmp = ""
-                    var key_tmp = elm.category + "=" + elm.type;
-                    if (kind_table[key_tmp]) kind_tmp = kind_table[key_tmp]
+                        var kind_tmp = ""
+                        var key_tmp = elm.category + "=" + elm.type;
+                        if (kind_table[key_tmp]) kind_tmp = kind_table[key_tmp]
 
-                    var a = document.createElement("a")
-                    a.innerText = elm.name ? elm.name : kind_tmp
-                    a.href = "javascript:void(0)"
-                    res.appendChild(a)
+                        var a = document.createElement("a")
+                        a.innerText = elm.name ? elm.name : (kind_tmp || "名前なし" + key_tmp)
+                        a.href = "javascript:void(0)"
+                        res.appendChild(a)
 
-                    a.addEventListener("click", function () {
-                        if (map_marker) {
-                            map_marker.remove()
-                            map_marker = null;
-                        }
-                        map_marker = new maplibregl.Marker().setLngLat([elm.lon, elm.lat]).addTo(map);
+                        a.addEventListener("click", function () {
+                            if (map_marker) {
+                                map_marker.remove()
+                                map_marker = null;
+                            }
+                            map_marker = new maplibregl.Marker().setLngLat([elm.lon, elm.lat]).addTo(map);
 
-                        draw_search_detail(elm)
+                            draw_search_detail(elm)
+                        })
+
+                        var span = document.createElement("span")
+                        var distance_str = elm.distance ? "ここから" + format_dist(elm.distance) + " / " : ""
+                        span.innerText = distance_str + elm.display_name
+                        res.appendChild(span)
+
+                        document.getElementById("result_list").appendChild(res)
                     })
-
-                    var span = document.createElement("span")
-                    var distance_str = elm.distance ? "ここから" + format_dist(elm.distance) + " / " : ""
-                    span.innerText = distance_str + elm.display_name
-                    res.appendChild(span)
-
-                    document.getElementById("result_list").appendChild(res)
-                })
+                }
             } else {
                 document.getElementById("result_list").innerHTML = "結果なし"
 
@@ -497,11 +502,16 @@
             "軽食": "fast_food",
             "給水機": "water",
             "冷水機": "water",
+            "ゲート": "日本館",
+            "日本": "日本館",
             "中国": "中国パビリオン",
             "アメリカ": "米国パビリオン",
             "フランス": "フランスパビリオン",
             "大屋根": "大屋根リング",
             "駅": "station",
+            "夢洲駅": "station",
+            "バス停": "bus_stop",
+            "バス": "bus_stop",
             "自販機": "vending_machine",
             "自動販売機": "vending_machine",
             "自動販売機": "vending_machine",
